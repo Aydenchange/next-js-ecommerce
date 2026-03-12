@@ -4,7 +4,9 @@ import ProductForm from "../_components/ProductForm";
 export default function ProductAddForm() {
   return (
     <>
-      <PageHeader>Add Product</PageHeader>
+      <PageHeader>
+        <div className="flex justify-center">Add Product</div>
+      </PageHeader>
       <ProductForm />
     </>
   );
