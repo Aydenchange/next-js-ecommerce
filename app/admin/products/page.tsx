@@ -20,7 +20,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DownloadIcon, PencilIcon, ShareIcon, TrashIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  PencilIcon,
+  ToggleLeftIcon,
+  ToggleRightIcon,
+  TrashIcon,
+} from "lucide-react";
+import { deleteProduct, toggleProductAvailability } from "../_action/products";
 
 export default function AdminProductsPage() {
   return (
@@ -43,6 +50,7 @@ async function ProductTable() {
       id: true,
       name: true,
       priceInCents: true,
+      filePath: true,
       isAvailableForPurchase: true,
       _count: {
         select: {
@@ -94,26 +102,83 @@ async function ProductTable() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
                     <DropdownMenuGroup>
-                      <DropdownMenuItem>
-                        <DownloadIcon />
-                        Download
-                      </DropdownMenuItem>
+                      {product.filePath ? (
+                        <DropdownMenuItem asChild>
+                          <a href={product.filePath} download>
+                            <DownloadIcon />
+                            Download
+                          </a>
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem disabled>
+                          <DownloadIcon />
+                          Download
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem asChild>
                         <Link href={`/admin/products/${product.id}/edit`}>
                           <PencilIcon />
                           Edit
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <ShareIcon />
-                        Share
+                      <DropdownMenuItem
+                        asChild
+                        className={
+                          product.isAvailableForPurchase
+                            ? "bg-green-100 text-green-800 focus:bg-green-200 focus:text-green-900"
+                            : undefined
+                        }
+                      >
+                        <form
+                          action={toggleProductAvailability.bind(
+                            null,
+                            product.id,
+                            !product.isAvailableForPurchase,
+                          )}
+                          className="w-full"
+                        >
+                          <button
+                            type="submit"
+                            role="switch"
+                            aria-checked={product.isAvailableForPurchase}
+                            aria-label={
+                              product.isAvailableForPurchase
+                                ? "Set product unavailable"
+                                : "Set product available"
+                            }
+                            className="flex w-full items-center justify-start gap-2"
+                          >
+                            {product.isAvailableForPurchase ? (
+                              <ToggleRightIcon className="text-green-600" />
+                            ) : (
+                              <ToggleLeftIcon className="text-muted-foreground" />
+                            )}
+                            <span>
+                              {product.isAvailableForPurchase ? "已上架" : "未上架"}
+                            </span>
+                          </button>
+                        </form>
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem variant="destructive">
-                        <TrashIcon />
-                        Delete
+                      <DropdownMenuItem
+                        asChild
+                        variant="destructive"
+                        disabled={product._count.orders > 0}
+                      >
+                        <form
+                          action={deleteProduct.bind(null, product.id)}
+                          className="w-full"
+                        >
+                          <button
+                            type="submit"
+                            className="flex w-full items-center gap-1.5"
+                          >
+                            <TrashIcon />
+                            Delete
+                          </button>
+                        </form>
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>

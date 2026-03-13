@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { db } from "@/db/db";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 const fileSchema = z.instanceof(File, { message: "Required" });
 const imageSchema = fileSchema.refine(
@@ -153,4 +154,58 @@ export async function updateProduct(
   });
 
   redirect("/admin/products");
+}
+
+export async function toggleProductAvailability(
+  id: string,
+  isAvailableForPurchase: boolean,
+) {
+  await db.product.update({
+    where: { id },
+    data: { isAvailableForPurchase },
+  });
+
+  revalidatePath("/admin/products");
+}
+
+export async function deleteProduct(id: string) {
+  const product = await db.product.findUnique({
+    where: { id },
+    select: {
+      filePath: true,
+      imagePath: true,
+      _count: {
+        select: {
+          orders: true,
+        },
+      },
+    },
+  });
+
+  if (!product || product._count.orders > 0) {
+    revalidatePath("/admin/products");
+    return;
+  }
+
+  await db.product.delete({
+    where: { id },
+  });
+
+  const removeUploadedFile = async (urlPath: string) => {
+    if (!urlPath.startsWith("/uploads/")) return;
+
+    const localPath = path.join(process.cwd(), "public", urlPath.slice(1));
+    try {
+      await fs.promises.unlink(localPath);
+    } catch {
+      // Ignore missing files; DB record is already removed.
+    }
+  };
+
+  await Promise.all([
+    removeUploadedFile(product.filePath),
+    removeUploadedFile(product.imagePath),
+  ]);
+
+  revalidatePath("/admin/products");
 }
