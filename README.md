@@ -14,6 +14,24 @@ ADMIN_PASSWORD=your-strong-password
 
 If `ADMIN_PASSWORD` is not set, the app falls back to `admin123` for local development.
 
+### Stripe Checkout And Email
+
+To enable "Buy Now" checkout and order confirmation email, set the following in `.env`:
+
+```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+STRIPE_SECRET_KEY=sk_test_xxx
+
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your-user
+SMTP_PASS=your-pass
+MAIL_FROM=no-reply@example.com
+```
+
+If SMTP settings are missing, payment still works, but confirmation email will be skipped.
+
 First, run the development server:
 
 ```bash

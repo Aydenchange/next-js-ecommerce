@@ -97,6 +97,7 @@ export async function addProduct(
     },
   });
 
+  revalidatePath("/");
   redirect("/admin/products");
 }
 
@@ -153,6 +154,7 @@ export async function updateProduct(
     },
   });
 
+  revalidatePath("/");
   redirect("/admin/products");
 }
 
@@ -165,6 +167,7 @@ export async function toggleProductAvailability(
     data: { isAvailableForPurchase },
   });
 
+  revalidatePath("/");
   revalidatePath("/admin/products");
 }
 
@@ -183,6 +186,7 @@ export async function deleteProduct(id: string) {
   });
 
   if (!product || product._count.orders > 0) {
+    revalidatePath("/");
     revalidatePath("/admin/products");
     return;
   }
@@ -207,5 +211,6 @@ export async function deleteProduct(id: string) {
     removeUploadedFile(product.imagePath),
   ]);
 
+  revalidatePath("/");
   revalidatePath("/admin/products");
 }
