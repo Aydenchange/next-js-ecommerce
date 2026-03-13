@@ -2,6 +2,18 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Admin Authentication
+
+This project includes a simple admin authentication flow for routes under `/admin`.
+
+Create a `.env` file in the project root and set:
+
+```bash
+ADMIN_PASSWORD=your-strong-password
+```
+
+If `ADMIN_PASSWORD` is not set, the app falls back to `admin123` for local development.
+
 First, run the development server:
 
 ```bash
