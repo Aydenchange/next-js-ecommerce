@@ -4,16 +4,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/formatters";
+import Image from "next/image";
 import { useState } from "react";
 import { addProduct, type AddProductFormState } from "../../_action/products";
 import { Button } from "@/components/ui/button";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
 
-export default function ProductForm() {
-  const [priceInCents, setPriceInCents] = useState<number>(0);
+type ProductFormProps = {
+  product?: {
+    name: string;
+    priceInCents: number;
+    description: string;
+    filePath?: string;
+    imagePath?: string;
+  };
+  action?: (
+    prevState: AddProductFormState,
+    formData: FormData,
+  ) => Promise<AddProductFormState | void>;
+};
+
+export default function ProductForm({
+  product,
+  action: formAction,
+}: ProductFormProps) {
+  const [priceInCents, setPriceInCents] = useState<number>(
+    product?.priceInCents ?? 0,
+  );
+  const isEditMode = product != null;
   const [state, action] = useActionState<AddProductFormState, FormData>(
-    addProduct,
+    async (prevState, formData) => {
+      const result = await (formAction ?? addProduct)(prevState, formData);
+      return result ?? prevState;
+    },
     { errors: {} },
   );
 
@@ -28,10 +52,12 @@ export default function ProductForm() {
             name="name"
             aria-invalid={state.errors?.name != null}
             required
-            // defaultValue={}
+            defaultValue={product?.name}
           />
           {state.errors?.name != null && (
-            <div className="text-destructive text-sm">{state.errors.name[0]}</div>
+            <div className="text-destructive text-sm">
+              {state.errors.name[0]}
+            </div>
           )}
         </div>
         <div className="space-y-2">
@@ -61,6 +87,7 @@ export default function ProductForm() {
             name="description"
             required
             aria-invalid={state.errors?.description != null}
+            defaultValue={product?.description}
           />
           {state.errors?.description != null && (
             <div className="text-destructive text-sm">
@@ -75,9 +102,27 @@ export default function ProductForm() {
             id="file"
             name="file"
             aria-invalid={state.errors?.file != null}
+            required={!isEditMode}
           />
           {state.errors?.file != null && (
-            <div className="text-destructive text-sm">{state.errors.file[0]}</div>
+            <div className="text-destructive text-sm">
+              {state.errors.file[0]}
+            </div>
+          )}
+          {isEditMode && (
+            <div className="text-muted-foreground text-sm">
+              Leave empty to keep the current file.
+            </div>
+          )}
+          {product?.filePath != null && (
+            <a
+              href={product.filePath}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-blue-600 underline break-all"
+            >
+              {product.filePath}
+            </a>
           )}
         </div>
         <div className="space-y-2">
@@ -87,31 +132,40 @@ export default function ProductForm() {
             id="image"
             name="image"
             aria-invalid={state.errors?.image != null}
+            required={!isEditMode}
           />
           {state.errors?.image != null && (
-            <div className="text-destructive text-sm">{state.errors.image[0]}</div>
+            <div className="text-destructive text-sm">
+              {state.errors.image[0]}
+            </div>
           )}
-          {/* {product != null && (
-              <Image
-                src={product.imagePath}
-                height="400"
-                width="400"
-                alt="Product Image"
-              />
-            )} */}
+          {isEditMode && (
+            <div className="text-muted-foreground text-sm">
+              Leave empty to keep the current image.
+            </div>
+          )}
+          {product?.imagePath != null && (
+            <Image
+              src={product.imagePath}
+              width={320}
+              height={320}
+              alt="Current product image"
+              className="rounded-md border object-cover"
+            />
+          )}
         </div>
-        <SubmitButton />
+        <SubmitButton label={isEditMode ? "Update" : "Save"} />
       </form>
     </div>
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving..." : "Save"}
+      {pending ? "Saving..." : label}
     </Button>
   );
 }

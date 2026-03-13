@@ -12,6 +12,15 @@ import {
 } from "@/components/ui/table";
 import { db } from "@/db/db";
 import { formatCurrency } from "@/lib/formatters";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DownloadIcon, PencilIcon, ShareIcon, TrashIcon } from "lucide-react";
 
 export default function AdminProductsPage() {
   return (
@@ -79,11 +88,36 @@ async function ProductTable() {
               </TableCell>
               <TableCell>{product._count.orders}</TableCell>
               <TableCell>
-                <Link href={`/admin/products/${product.id}/edit`}>
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">Actions</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem>
+                        <DownloadIcon />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/products/${product.id}/edit`}>
+                          <PencilIcon />
+                          Edit
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <ShareIcon />
+                        Share
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem variant="destructive">
+                        <TrashIcon />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
