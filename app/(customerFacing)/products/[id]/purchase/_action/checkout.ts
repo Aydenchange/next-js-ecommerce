@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/db";
-import { stripe } from "@/lib/stripe";
+import { createAlipayPrecreateOrder } from "../../../../../../lib/alipay";
 
 function getBaseUrlFromHeaders(headersList: Headers) {
   const host = headersList.get("x-forwarded-host") ?? headersList.get("host");
@@ -20,8 +20,13 @@ function getBaseUrlFromHeaders(headersList: Headers) {
   return `${protocol}://${host}`;
 }
 
-export async function createCheckoutSession(productId: string, formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+export async function createCheckoutSession(
+  productId: string,
+  formData: FormData,
+) {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
 
   if (!email || !email.includes("@")) {
     redirect(`/products/${productId}/purchase?error=invalid_email`);
@@ -43,34 +48,34 @@ export async function createCheckoutSession(productId: string, formData: FormDat
   }
 
   const baseUrl = getBaseUrlFromHeaders(await headers());
+  const outTradeNo = `${product.id}__${Date.now()}`;
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: email,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: product.priceInCents,
-          product_data: {
-            name: product.name,
-            description: product.description,
-          },
-        },
-      },
-    ],
-    metadata: {
-      productId: product.id,
-      email,
-    },
-    success_url: `${baseUrl}/orders/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/products/${product.id}/purchase?canceled=1`,
-  });
-
-  if (!session.url) {
-    redirect(`/products/${product.id}/purchase?error=session_failed`);
+  let qrCode = "";
+  try {
+    qrCode = await createAlipayPrecreateOrder({
+      outTradeNo,
+      totalAmount: (product.priceInCents / 100).toFixed(2),
+      subject: product.name,
+      body: product.description,
+      notifyUrl: `${baseUrl}/api/alipay/notify`,
+    });
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message
+        ? error.message.slice(0, 300)
+        : "unknown_error";
+    const params = new URLSearchParams({
+      error: "session_failed",
+      reason,
+    });
+    redirect(`/products/${product.id}/purchase?${params.toString()}`);
   }
 
-  redirect(session.url);
+  const params = new URLSearchParams({
+    email,
+    out_trade_no: outTradeNo,
+    qr_code: qrCode,
+  });
+
+  redirect(`/products/${product.id}/purchase?${params.toString()}`);
 }

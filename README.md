@@ -14,23 +14,21 @@ ADMIN_PASSWORD=your-strong-password
 
 If `ADMIN_PASSWORD` is not set, the app falls back to `admin123` for local development.
 
-### Stripe Checkout And Email
+### Alipay Checkout
 
-To enable "Buy Now" checkout and order confirmation email, set the following in `.env`:
+To enable "Buy Now" checkout with Alipay QR payment, set the following in `.env`:
 
 ```bash
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-STRIPE_SECRET_KEY=sk_test_xxx
-
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USER=your-user
-SMTP_PASS=your-pass
-MAIL_FROM=no-reply@example.com
+ALIPAY_APP_ID=your_app_id
+ALIPAY_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+ALIPAY_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+# Optional: use sandbox gateway during development
+# ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
 ```
 
-If SMTP settings are missing, payment still works, but confirmation email will be skipped.
+After opening the payment page from "Buy Now", users can generate an Alipay QR code and the page will automatically redirect to the success page once payment is confirmed.
 
 First, run the development server:
 

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { db } from "@/db/db";
-import { stripe } from "@/lib/stripe";
-import { sendOrderPaidEmail } from "@/lib/email";
+import { isAlipayTradePaid, queryAlipayOrder } from "@/lib/alipay";
+import { ensurePaidOrderSaved } from "@/lib/payment-order";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,29 +13,33 @@ import {
 } from "@/components/ui/card";
 
 type OrderSuccessPageProps = {
-  searchParams?: Promise<{ session_id?: string }>;
+  searchParams?: Promise<{ out_trade_no?: string; email?: string }>;
 };
 
 export default async function OrderSuccessPage({
   searchParams,
 }: OrderSuccessPageProps) {
   const params = (await searchParams) ?? {};
-  const sessionId = params.session_id;
+  const outTradeNo = params.out_trade_no;
+  const email = params.email?.trim().toLowerCase();
 
-  if (!sessionId) {
+  if (!outTradeNo) {
     redirect("/");
   }
 
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const queryResult = await queryAlipayOrder(outTradeNo);
 
-  if (session.payment_status !== "paid") {
+  if (
+    queryResult.code !== "10000" ||
+    !isAlipayTradePaid(queryResult.tradeStatus)
+  ) {
     return (
       <main className="mx-auto w-full max-w-xl">
         <Card>
           <CardHeader>
-            <CardTitle>Payment Pending</CardTitle>
+            <CardTitle>支付处理中</CardTitle>
             <CardDescription>
-              Your payment is not completed yet. Please check again later.
+              订单尚未支付成功，请完成付款后重试。
             </CardDescription>
           </CardHeader>
           <CardFooter>
@@ -49,18 +52,14 @@ export default async function OrderSuccessPage({
     );
   }
 
-  const email =
-    session.customer_details?.email ?? session.metadata?.email ?? undefined;
-  const productId = session.metadata?.productId;
-
-  if (!email || !productId) {
+  if (!email) {
     return (
       <main className="mx-auto w-full max-w-xl">
         <Card>
           <CardHeader>
-            <CardTitle>Payment Successful</CardTitle>
+            <CardTitle>支付成功</CardTitle>
             <CardDescription>
-              Payment succeeded, but order details are incomplete.
+              支付成功，但订单信息不完整，请联系客服。
             </CardDescription>
           </CardHeader>
           <CardFooter>
@@ -73,69 +72,45 @@ export default async function OrderSuccessPage({
     );
   }
 
-  const product = await db.product.findUnique({
-    where: { id: productId },
-    select: {
-      id: true,
-      name: true,
-      priceInCents: true,
-    },
+  const saveResult = await ensurePaidOrderSaved({
+    outTradeNo,
+    email,
+    totalAmount: queryResult.totalAmount ?? "0",
   });
 
-  if (!product) {
-    redirect("/");
+  if (!saveResult.ok) {
+    return (
+      <main className="mx-auto w-full max-w-xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>订单保存失败</CardTitle>
+            <CardDescription>
+              支付成功，但订单保存失败（{saveResult.reason}），请联系客服处理。
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link href="/">Back to Home</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </main>
+    );
   }
-
-  const user = await db.user.upsert({
-    where: { email },
-    update: {},
-    create: { email },
-  });
-
-  const sessionCreatedAt = new Date(session.created * 1000);
-  const sessionWindowStart = new Date(session.created * 1000 - 1000 * 60 * 15);
-
-  const recentOrder = await db.order.findFirst({
-    where: {
-      userId: user.id,
-      productId: product.id,
-      pricePaidInCents: product.priceInCents,
-      createdAt: {
-        gte: sessionWindowStart,
-        lte: sessionCreatedAt,
-      },
-    },
-    select: { id: true },
-  });
-
-  if (!recentOrder) {
-    await db.order.create({
-      data: {
-        userId: user.id,
-        productId: product.id,
-        pricePaidInCents: product.priceInCents,
-      },
-    });
-  }
-
-  await sendOrderPaidEmail({
-    to: email,
-    productName: product.name,
-  });
 
   return (
     <main className="mx-auto w-full max-w-xl">
       <Card>
         <CardHeader>
-          <CardTitle>Payment Successful</CardTitle>
-          <CardDescription>
-            Your order is confirmed. A confirmation email has been sent to {email}.
-          </CardDescription>
+          <CardTitle>支付成功</CardTitle>
+          <CardDescription>订单已完成，感谢你的购买。</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border p-3">
-            <p className="font-medium">{product.name}</p>
-            <p className="text-sm text-muted-foreground">Order completed</p>
+            <p className="font-medium">订单已写入系统</p>
+            <p className="text-sm text-muted-foreground">
+              订单号：{outTradeNo}
+            </p>
           </div>
         </CardContent>
         <CardFooter className="flex gap-2">
